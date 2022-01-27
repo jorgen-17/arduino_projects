@@ -21,7 +21,7 @@ void setup() {
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
-  
+
   Serial.begin(9600);
 }
 
@@ -32,7 +32,7 @@ void loop() {
   brightness = inputToOutput(potentiometerInput);
   Serial.print("Brightness: ");
   Serial.println(brightness);
-  
+
   int buttonRead = digitalRead(buttonInputPin);
   if (buttonRead){
     if(colorIndex >= (colorsLength - 1)){
@@ -41,9 +41,9 @@ void loop() {
       colorIndex++;
     }
   }
-  Serial.print("colorIndex after: ");
+  Serial.print("colorIndex: ");
   Serial.println(colorIndex);
-  
+
   switch (colors[colorIndex]) {
     case RED:
       analogWrite(redPin, brightness);
@@ -61,7 +61,7 @@ void loop() {
       analogWrite(bluePin, brightness);
       break;
   }
-  
+
   delay(100);
 }
 
