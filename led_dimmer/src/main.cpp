@@ -1,6 +1,16 @@
+#include <Arduino.h>
+
 void setup() {
   Serial.begin(9600);
   pinMode(3, OUTPUT);
+}
+
+float inputToVoltage (int input) {
+  return input * (5.0 / 1023.0);
+}
+
+int voltageToBrightness(float voltage) {
+  return (voltage / 5) * 255;
 }
 
 void loop() {
@@ -13,12 +23,4 @@ void loop() {
   Serial.print("Bulb Brightness: ");
   Serial.println(brightness);
   analogWrite(3, brightness);
-}
-
-float inputToVoltage (int input) {
-  return input * (5.0 / 1023.0);
-}
-
-int voltageToBrightness(float voltage) {
-  return (voltage / 5) * 255;
 }

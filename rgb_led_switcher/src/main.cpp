@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 enum Color { RED, GREEN, BLUE };
 
 int potentiometerPin = A0;
@@ -23,6 +25,10 @@ void setup() {
   pinMode(bluePin, OUTPUT);
 
   Serial.begin(9600);
+}
+
+int inputToOutput(int input) {
+  return (int) ((input / 1023.0) * 255.0);
 }
 
 void loop() {
@@ -63,8 +69,4 @@ void loop() {
   }
 
   delay(100);
-}
-
-int inputToOutput(int input) {
-  return (int) ((input / 1023.0) * 255.0);
 }
