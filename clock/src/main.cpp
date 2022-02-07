@@ -1,9 +1,9 @@
 #include <Arduino.h>
 #include <LiquidCrystal.h>
 
-enum State { RECORD_TIME, RECORD_DATE, DISPLAY_DATETIME, MENU };
+enum State { MENU, SET_TIME, SET_DATE };
 
-State state = RECORD_TIME;
+State state = MENU;
 
 int hour = 12;
 int minute = 0;
@@ -36,16 +36,49 @@ float inputToVoltage (int input) {
   return input * (5.0 / 1023.0);
 }
 
-void loop() {
+void updateTime () {
+  second++;
+  if (second >= 60) {
+    second = 0;
+    minute++;
+  }
+  if (minute >= 60) {
+    minute = 0;
+    hour++;
+  }
+  if (hour >= 24) {
+    hour = 0;
+  }
+}
 
+void loop() {
   // int potentiometerInput = analogRead(potentiometerPin);
   // float inputVoltage = inputToVoltage(potentiometerInput);
   // Serial.print("Potentiometer Voltage: ");
   // Serial.println(inputVoltage);
 
-  lcd.setCursor(0, 0);
-  lcd.print("Hello World!!!");
+  String hourString = hour >= 10 ? String(hour) : "0" + String(hour);
+  String minuteString = minute >= 10 ? String(minute) : "0" + String(minute);
+  String secondString = second >= 10 ? String(second) : "0" + String(second);
+  String monthString = month >= 10 ? String(month) : "0" + String(month);
+  String dayString = day >= 10 ? String(day) : "0" + String(day);
 
-  delay(500);
+  switch (state) {
+    case MENU:
+        lcd.setCursor(0, 0);
+        lcd.print(">Time:" + hourString + ":" + minuteString + ":" + secondString);
+        lcd.setCursor(0, 1);
+        lcd.print("Date:" + monthString + "/" + dayString + "/" + String(year));
+      break;
+    case SET_TIME:
+      // todo set time menu
+      break;
+    case SET_DATE:
+      // todo set date menu
+      break;
+  }
+
+  delay(1000);
+  updateTime();
   lcd.clear();
 }
