@@ -2,8 +2,10 @@
 #include <LiquidCrystal.h>
 
 enum State { MENU, SET_TIME, SET_DATE };
+enum AMPM { AM, PM };
 
 State state = MENU;
+AMPM ampm = PM;
 
 int hour = 12;
 int minute = 0;
@@ -45,9 +47,40 @@ void updateTime () {
   if (minute >= 60) {
     minute = 0;
     hour++;
+    if (hour == 12) {
+      switch (ampm)
+      {
+        case AM:
+          ampm = PM;
+          break;
+        case PM:
+          ampm = AM;
+          day++;
+          break;
+      }
+    }
   }
-  if (hour >= 24) {
-    hour = 0;
+  if (hour >= 13) {
+    hour = 1;
+  }
+  if(day >= 32) {
+    month++;
+    day = 1;
+  }
+  if(month >= 13) {
+    year++;
+    month = 1;
+  }
+}
+
+String ampmToString(AMPM ampm) {
+  switch (ampm) {
+    case AM:
+      return "AM";
+      break;
+    case PM:
+      return "PM";
+      break;
   }
 }
 
@@ -66,7 +99,7 @@ void loop() {
   switch (state) {
     case MENU:
         lcd.setCursor(0, 0);
-        lcd.print(">Time:" + hourString + ":" + minuteString + ":" + secondString);
+        lcd.print(">Time:" + hourString + ":" + minuteString + ":" + secondString + ampmToString(ampm));
         lcd.setCursor(0, 1);
         lcd.print("Date:" + monthString + "/" + dayString + "/" + String(year));
       break;
