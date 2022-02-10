@@ -14,7 +14,7 @@ int dateCursor = 0;
 int hour = 12;
 int minute = 0;
 int second = 0;
-int year = 1900;
+int year = 2000;
 int month = 1;
 int day = 1;
 
@@ -67,11 +67,11 @@ void updateTime () {
   if (hour >= 13) {
     hour = 1;
   }
-  if(day >= 32) {
+  if (day >= 32) {
     month++;
     day = 1;
   }
-  if(month >= 13) {
+  if (month >= 13) {
     year++;
     month = 1;
   }
@@ -129,8 +129,8 @@ void loop() {
         lcd.print(line1Cursor + "Time:" + hourString + ":" + minuteString + ":" + secondString + ampmToString(ampm));
         lcd.setCursor(0, 1);
         lcd.print(line2Cursor + "Date:" + monthString + "/" + dayString + "/" + String(year));
-        if(buttonRead) {
-          if(menuCursor == 0) {
+        if (buttonRead) {
+          if (menuCursor == 0) {
             state = SET_TIME;
           }
           else if (menuCursor == 1) {
@@ -150,9 +150,24 @@ void loop() {
           ampmCursor + ampmToString(ampm));
         Serial.print("buttonRead inside set time: ");
         Serial.println(buttonRead);
-        if(buttonRead) {
+
+        if (timeCursor == 0) {
+          input = inputToIntervals(potentiometerInput, 12);
+          hour = input;
+        } else if (timeCursor == 1) {
+          input = inputToIntervals(potentiometerInput, 60);
+          minute = input;
+        } else if (timeCursor == 2) {
+          input = inputToIntervals(potentiometerInput, 60);
+          second = input;
+        } else if (timeCursor == 3) {
+          input = inputToIntervals(potentiometerInput, 10);
+          ampm = input % 2 == 0 ? AM : PM;
+        }
+
+        if (buttonRead) {
           timeCursor++;
-          if(timeCursor >= 4) {
+          if (timeCursor >= 4) {
             timeCursor = 0;
             state = MENU;
           }
@@ -169,9 +184,21 @@ void loop() {
           yearCursor + String(year));
         Serial.print("buttonRead inside set date: ");
         Serial.println(buttonRead);
-        if(buttonRead) {
+
+        if (dateCursor == 0) {
+          input = inputToIntervals(potentiometerInput, 12);
+          month = input;
+        } else if (dateCursor == 1) {
+          input = inputToIntervals(potentiometerInput, 31);
+          day = input;
+        } else if (dateCursor == 2) {
+          input = inputToIntervals(potentiometerInput, 50);
+          year = 2000 + input;
+        }
+
+        if (buttonRead) {
           dateCursor++;
-          if(dateCursor >= 3) {
+          if (dateCursor >= 3) {
             dateCursor = 0;
             state = MENU;
           }
@@ -185,7 +212,7 @@ void loop() {
 
   delay(100);
   ticks++;
-  if(ticks >= 10 && state != SET_TIME) { //update time only once per second
+  if (ticks >= 10 && state != SET_TIME) { //update time only once per second
     ticks = 0;
     updateTime();
   }
