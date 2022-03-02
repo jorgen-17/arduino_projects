@@ -8,6 +8,7 @@ State state = MENU;
 AMPM ampm = PM;
 
 int ticks = 0;
+int menuCursor = 0;
 int timeCursor = 0;
 int dateCursor = 0;
 
@@ -18,28 +19,46 @@ int year = 2000;
 int month = 1;
 int day = 1;
 
-int buttonPin = A0;
-int potentiometerPin = A1;
+int counter = 0;
+int currentStateCLK;
+int previousStateCLK;
+unsigned long lastButtonPress = 0;
 
-int rs = 7;
-int e = 8;
-int d4 = 9;
-int d5 = 10;
-int d6 = 11;
-int d7 = 12;
-LiquidCrystal lcd(rs,e,d4,d5,d6,d7);
+enum DIRECTION { CW, CCW, NONE };
+
+#define CLK 5
+#define DT 4
+#define SW 3
+
+#define RS 7
+#define E 8
+#define D4 9
+#define D5 10
+#define D6 11
+#define D7 12
+
+LiquidCrystal lcd(RS, E, D4, D5, D6, D7);
 
 void setup() {
-  pinMode(buttonPin, INPUT);
-  pinMode(potentiometerPin, INPUT);
+  pinMode (CLK, INPUT);
+  pinMode (DT, INPUT);
+  pinMode (SW, INPUT);
 
   lcd.begin(16, 2);
 
   Serial.begin(9600);
+
+  previousStateCLK = digitalRead(CLK);
 }
 
-int inputToIntervals (int input, int numberOfIntervals) {
-  return (input  / 1023.0) * numberOfIntervals;
+int updateValueWithinLimitsInclusive (DIRECTION direction, int value, int lowerLimit, int upperLimit) {
+  if (direction == CW) {
+    value++;
+    return value > upperLimit ? upperLimit : value;
+  } else if (direction == CCW) {
+    value--;
+    return value < lowerLimit ? lowerLimit : value;
+  }
 }
 
 void updateTime () {
@@ -77,6 +96,47 @@ void updateTime () {
   }
 }
 
+DIRECTION readEncoder() {
+  DIRECTION direction = NONE;
+  currentStateCLK = digitalRead(CLK);
+
+  if(currentStateCLK != previousStateCLK) {
+    if (digitalRead(DT) != currentStateCLK) {
+      counter--;
+      direction = CCW;
+    } else {
+      counter++;
+      direction = CW;
+    }
+  }
+
+  Serial.print("Direction: ");
+  Serial.print(direction);
+  Serial.print(" -- Value: ");
+  Serial.println(counter);
+
+  previousStateCLK = currentStateCLK;
+
+  return direction;
+}
+
+bool buttonClicked() {
+  if (digitalRead(SW) == LOW) {
+    //if 50ms have passed since last LOW pulse, it means that the
+    //button has been pressed, released and pressed again
+    if (millis() - lastButtonPress > 50) {
+      Serial.println("Button pressed!");
+      return true;
+    }
+
+    // Remember last button press event
+    lastButtonPress = millis();
+
+    return false;
+  }
+}
+
+
 String ampmToString(AMPM ampm) {
   switch (ampm) {
     case AM:
@@ -89,15 +149,10 @@ String ampmToString(AMPM ampm) {
 }
 
 void loop() {
-  int potentiometerInput = analogRead(potentiometerPin);
-  int input = inputToIntervals(potentiometerInput, 10);
-  int buttonRead = digitalRead(buttonPin);
-  Serial.print("potentiometer: ");
-  Serial.println(potentiometerInput);
-  Serial.print("buttonRead outside: ");
-  Serial.println(buttonRead);
+  DIRECTION rotationDirection = readEncoder();
+  bool buttonRead = buttonClicked();
 
-  int menuCursor = input % 2 == 0 ? 0 : 1;
+  menuCursor = updateValueWithinLimitsInclusive(rotationDirection, menuCursor, 0, 1);
   String line1Cursor = menuCursor == 0 ? ">" : "";
   String line2Cursor = menuCursor == 1 ? ">" : "";
   String hourString = hour >= 10 ? String(hour) : "0" + String(hour);
@@ -114,13 +169,6 @@ void loop() {
   String monthCursor = dateCursor == 0 ? ">" : "";
   String dayCursor = dateCursor == 1 ? ">" : "";
   String yearCursor = dateCursor == 2 ? ">" : "";
-
-  Serial.print("state: ");
-  Serial.println(state);
-  Serial.print("timeCursor: ");
-  Serial.println(timeCursor);
-  Serial.print("dateCursor: ");
-  Serial.println(dateCursor);
 
   switch (state) {
     case MENU:
@@ -152,17 +200,14 @@ void loop() {
         Serial.println(buttonRead);
 
         if (timeCursor == 0) {
-          input = inputToIntervals(potentiometerInput, 12);
-          hour = input;
+          hour = updateValueWithinLimitsInclusive(rotationDirection, hour, 0, 12);
         } else if (timeCursor == 1) {
-          input = inputToIntervals(potentiometerInput, 60);
-          minute = input;
+          minute = updateValueWithinLimitsInclusive(rotationDirection, minute, 0, 60);
         } else if (timeCursor == 2) {
-          input = inputToIntervals(potentiometerInput, 60);
-          second = input;
+          second = updateValueWithinLimitsInclusive(rotationDirection, second, 0, 60);
         } else if (timeCursor == 3) {
-          input = inputToIntervals(potentiometerInput, 10);
-          ampm = input % 2 == 0 ? AM : PM;
+          int newAMPM = updateValueWithinLimitsInclusive(rotationDirection, ampm, 0, 1);
+          ampm = newAMPM == 0 ? AM : PM;
         }
 
         if (buttonRead) {
@@ -186,14 +231,11 @@ void loop() {
         Serial.println(buttonRead);
 
         if (dateCursor == 0) {
-          input = inputToIntervals(potentiometerInput, 12);
-          month = input;
+          month = updateValueWithinLimitsInclusive(rotationDirection, month, 0, 12);
         } else if (dateCursor == 1) {
-          input = inputToIntervals(potentiometerInput, 31);
-          day = input;
+          day = updateValueWithinLimitsInclusive(rotationDirection, day, 0, 31);
         } else if (dateCursor == 2) {
-          input = inputToIntervals(potentiometerInput, 50);
-          year = 2000 + input;
+          year = updateValueWithinLimitsInclusive(rotationDirection, year, 2001, 2100);
         }
 
         if (buttonRead) {
