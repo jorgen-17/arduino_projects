@@ -3,11 +3,11 @@
 
 enum State { MENU, SET_TIME, SET_DATE };
 enum AMPM { AM, PM };
+enum DIRECTION { CW, CCW, NONE };
 
 State state = MENU;
 AMPM ampm = PM;
 
-int ticks = 0;
 int menuCursor = 0;
 int timeCursor = 0;
 int dateCursor = 0;
@@ -22,9 +22,11 @@ int day = 1;
 int counter = 0;
 int currentStateCLK;
 int previousStateCLK;
-unsigned long lastButtonPress = 0;
+unsigned long lastTimeUpdate = 0;
+unsigned long lastButtonPressed = 0;
+unsigned long lastDisplay = 0;
 
-enum DIRECTION { CW, CCW, NONE };
+bool buttonPressed = false;
 
 #define CLK 5
 #define DT 4
@@ -51,17 +53,32 @@ void setup() {
   previousStateCLK = digitalRead(CLK);
 }
 
-int updateValueWithinLimitsInclusive (DIRECTION direction, int value, int lowerLimit, int upperLimit) {
-  if (direction == CW) {
-    value++;
-    return value > upperLimit ? upperLimit : value;
-  } else if (direction == CCW) {
-    value--;
-    return value < lowerLimit ? lowerLimit : value;
+String ampmToString(AMPM ampm) {
+  switch (ampm) {
+    case AM:
+      return "AM";
+      break;
+    case PM:
+      return "PM";
+      break;
   }
 }
 
+int updateValueWithinCircularLimits (int delta, int value, int lowerLimit, int upperLimit) {
+  int newValue = value + delta;
+
+  if (delta > 0) {
+    return newValue > upperLimit ? lowerLimit : newValue;
+  } else if (delta < 0) {
+    return newValue < lowerLimit ? upperLimit : newValue;
+  }
+
+  return value;
+}
+
 void updateTime () {
+  Serial.println("updating the time");
+
   second++;
   if (second >= 60) {
     second = 0;
@@ -96,63 +113,8 @@ void updateTime () {
   }
 }
 
-DIRECTION readEncoder() {
-  DIRECTION direction = NONE;
-  currentStateCLK = digitalRead(CLK);
-
-  if(currentStateCLK != previousStateCLK) {
-    if (digitalRead(DT) != currentStateCLK) {
-      counter--;
-      direction = CCW;
-    } else {
-      counter++;
-      direction = CW;
-    }
-  }
-
-  Serial.print("Direction: ");
-  Serial.print(direction);
-  Serial.print(" -- Value: ");
-  Serial.println(counter);
-
-  previousStateCLK = currentStateCLK;
-
-  return direction;
-}
-
-bool buttonClicked() {
-  if (digitalRead(SW) == LOW) {
-    //if 50ms have passed since last LOW pulse, it means that the
-    //button has been pressed, released and pressed again
-    if (millis() - lastButtonPress > 50) {
-      Serial.println("Button pressed!");
-      return true;
-    }
-
-    // Remember last button press event
-    lastButtonPress = millis();
-
-    return false;
-  }
-}
-
-
-String ampmToString(AMPM ampm) {
-  switch (ampm) {
-    case AM:
-      return "AM";
-      break;
-    case PM:
-      return "PM";
-      break;
-  }
-}
-
-void loop() {
-  DIRECTION rotationDirection = readEncoder();
-  bool buttonRead = buttonClicked();
-
-  menuCursor = updateValueWithinLimitsInclusive(rotationDirection, menuCursor, 0, 1);
+void displayMenu() {
+  menuCursor = updateValueWithinCircularLimits(counter, menuCursor, 0, 1);
   String line1Cursor = menuCursor == 0 ? ">" : "";
   String line2Cursor = menuCursor == 1 ? ">" : "";
   String hourString = hour >= 10 ? String(hour) : "0" + String(hour);
@@ -177,7 +139,7 @@ void loop() {
         lcd.print(line1Cursor + "Time:" + hourString + ":" + minuteString + ":" + secondString + ampmToString(ampm));
         lcd.setCursor(0, 1);
         lcd.print(line2Cursor + "Date:" + monthString + "/" + dayString + "/" + String(year));
-        if (buttonRead) {
+        if (buttonPressed) {
           if (menuCursor == 0) {
             state = SET_TIME;
           }
@@ -196,21 +158,19 @@ void loop() {
           minuteCursor + minuteString + ":" +
           secondCursor + secondString +
           ampmCursor + ampmToString(ampm));
-        Serial.print("buttonRead inside set time: ");
-        Serial.println(buttonRead);
 
         if (timeCursor == 0) {
-          hour = updateValueWithinLimitsInclusive(rotationDirection, hour, 0, 12);
+          hour = updateValueWithinCircularLimits(counter, hour, 1, 12);
         } else if (timeCursor == 1) {
-          minute = updateValueWithinLimitsInclusive(rotationDirection, minute, 0, 60);
+          minute = updateValueWithinCircularLimits(counter, minute, 0, 60);
         } else if (timeCursor == 2) {
-          second = updateValueWithinLimitsInclusive(rotationDirection, second, 0, 60);
+          second = updateValueWithinCircularLimits(counter, second, 0, 60);
         } else if (timeCursor == 3) {
-          int newAMPM = updateValueWithinLimitsInclusive(rotationDirection, ampm, 0, 1);
+          int newAMPM = updateValueWithinCircularLimits(counter, ampm, 0, 1);
           ampm = newAMPM == 0 ? AM : PM;
         }
 
-        if (buttonRead) {
+        if (buttonPressed) {
           timeCursor++;
           if (timeCursor >= 4) {
             timeCursor = 0;
@@ -227,18 +187,17 @@ void loop() {
           monthCursor + monthString + "/" +
           dayCursor + dayString + "/" +
           yearCursor + String(year));
-        Serial.print("buttonRead inside set date: ");
-        Serial.println(buttonRead);
+
 
         if (dateCursor == 0) {
-          month = updateValueWithinLimitsInclusive(rotationDirection, month, 0, 12);
+          month = updateValueWithinCircularLimits(counter, month, 0, 12);
         } else if (dateCursor == 1) {
-          day = updateValueWithinLimitsInclusive(rotationDirection, day, 0, 31);
+          day = updateValueWithinCircularLimits(counter, day, 0, 31);
         } else if (dateCursor == 2) {
-          year = updateValueWithinLimitsInclusive(rotationDirection, year, 2001, 2100);
+          year = updateValueWithinCircularLimits(counter, year, 2001, 2100);
         }
 
-        if (buttonRead) {
+        if (buttonPressed) {
           dateCursor++;
           if (dateCursor >= 3) {
             dateCursor = 0;
@@ -248,15 +207,48 @@ void loop() {
       break;
   }
 
-  Serial.println("");
-  Serial.println("");
-  Serial.println("");
+  //updated menu to reflect input
+  buttonPressed = false;
+  counter = 0;
+}
 
-  delay(100);
-  ticks++;
-  if (ticks >= 10 && state != SET_TIME) { //update time only once per second
-    ticks = 0;
-    updateTime();
+DIRECTION readEncoder() {
+  DIRECTION direction = NONE;
+  currentStateCLK = digitalRead(CLK);
+
+  if(currentStateCLK != previousStateCLK) {
+    if (digitalRead(DT) != currentStateCLK) {
+      counter++;
+      direction = CW;
+    } else {
+      counter--;
+      direction = CCW;
+    }
   }
-  lcd.clear();
+
+  previousStateCLK = currentStateCLK;
+
+  return direction;
+}
+
+void loop() {
+  readEncoder();
+
+  if (millis() - lastTimeUpdate >= 1000 && state != SET_TIME) { //update time only once per second
+    updateTime();
+    lastTimeUpdate = millis();
+  }
+
+  if (millis() - lastDisplay >= 200) { //refresh display every 200ms
+    lcd.clear();
+    displayMenu();
+    lastDisplay = millis();
+  }
+
+  if (millis() - lastButtonPressed >= 300) { //refresh button press every 300ms
+    buttonPressed = digitalRead(SW) == LOW;
+    lastButtonPressed = millis();
+  }
+
+  delay(1);
 }
