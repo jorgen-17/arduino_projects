@@ -28,16 +28,16 @@ unsigned long lastDisplay = 0;
 
 bool buttonPressed = false;
 
-#define CLK 5
-#define DT 4
-#define SW 3
+#define CLK 7
+#define DT 6
+#define SW 5
 
-#define RS 7
-#define E 8
-#define D4 9
-#define D5 10
-#define D6 11
-#define D7 12
+#define RS 8
+#define E 9
+#define D4 10
+#define D5 11
+#define D6 12
+#define D7 13
 
 LiquidCrystal lcd(RS, E, D4, D5, D6, D7);
 
@@ -245,7 +245,7 @@ void loop() {
     lastDisplay = millis();
   }
 
-  if (millis() - lastButtonPressed >= 300) { //refresh button press every 300ms
+  if (millis() - lastButtonPressed >= 400) { //refresh button press every 400ms
     buttonPressed = digitalRead(SW) == LOW;
     lastButtonPressed = millis();
   }
