@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <LiquidCrystal.h>
+#include "LowPower.h"
 
 enum State { MENU, SET_TIME, SET_DATE };
 enum AMPM { AM, PM };
@@ -30,7 +31,7 @@ bool buttonPressed = false;
 
 #define CLK 7
 #define DT 6
-#define SW 5
+#define SW 2
 
 #define RS 8
 #define E 9
@@ -41,14 +42,19 @@ bool buttonPressed = false;
 
 LiquidCrystal lcd(RS, E, D4, D5, D6, D7);
 
+// void wakingUp() {
+//   // detachInterrupt(digitalPinToInterrupt(SW));
+//   Serial.println("Hello, im waking up!");
+// }
+
 void setup() {
+  Serial.begin(9600);
+  Serial.println("Hello, im setting up!");
   pinMode (CLK, INPUT);
   pinMode (DT, INPUT);
   pinMode (SW, INPUT);
 
   lcd.begin(16, 2);
-
-  Serial.begin(9600);
 
   previousStateCLK = digitalRead(CLK);
 }
@@ -208,7 +214,6 @@ void displayMenu() {
   }
 
   //updated menu to reflect input
-  buttonPressed = false;
   counter = 0;
 }
 
@@ -246,8 +251,23 @@ void loop() {
   }
 
   if (millis() - lastButtonPressed >= 400) { //refresh button press every 400ms
-    buttonPressed = digitalRead(SW) == LOW;
-    lastButtonPressed = millis();
+    if (digitalRead(SW) == LOW) {
+      // Serial.println("SW is LOW!");
+      if (!buttonPressed) {
+        // Serial.println("button pressed!");
+        lastButtonPressed = millis();
+      }
+      buttonPressed = true;
+      // if (buttonPressed && (millis() - lastButtonPressed >= 1500)) {
+      //   Serial.println("button held down for 1.5s!");
+      //   pinMode(SW, INPUT_PULLUP);
+      //   attachInterrupt(digitalPinToInterrupt(SW), wakingUp, FALLING);
+      //   LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+      // }
+    } else if (digitalRead(SW) == HIGH) {
+      // Serial.println("button released!");
+      buttonPressed = false;
+    }
   }
 
   delay(1);
